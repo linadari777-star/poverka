@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Поверка">
+<meta name="theme-color" content="#0F6E56">
+<title>Поверка счётчиков — Каменское</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230F6E56'/><text y='.9em' font-size='80'>💧</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --teal:#0F6E56;--teal-m:#1D9E75;--teal-l:#E1F5EE;--teal-b:#9FE1CB;--teal-d:#085041;
+  --amber:#BA7517;--amber-l:#FAEEDA;--amber-b:#FAC775;
+  --blue:#185FA5;--blue-l:#E6F1FB;--blue-b:#B5D4F4;
+  --red:#A32D2D;--red-l:#FCEBEB;--red-b:#F7C1C1;
+  --green:#3B6D11;--green-l:#EAF3DE;--green-b:#C0DD97;
+  --border:#E8EAED;--border-m:#D0D5DD;
+  --bg:#F1F3F5;--surface:#ffffff;
+  --text:#111827;--text2:#6B7280;--text3:#9CA3AF;
+  --r:10px;--r-lg:14px;--r-xl:18px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 4px 12px rgba(0,0,0,.1);
+  --sh-lg:0 20px 60px rgba(0,0,0,.2);
+  --font-size:15px;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+
+/* Font switcher */
+body.font-serif { --font: Georgia,'Times New Roman',serif; }
+body.font-mono  { --font: 'Courier New',Courier,monospace; }
+body.font-round { --font: 'Trebuchet MS','Comic Sans MS',sans-serif; }
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:var(--font-size);line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ── HEADER ── */
+.hdr{background:var(--teal);padding:0 1.25rem;display:flex;align-items:center;gap:10px;height:56px;position:sticky;top:0;z-index:100}
+.hdr-logo{display:flex;align-items:center;gap:9px}
+.hdr-logo-ico{width:34px;height:34px;background:rgba(255,255,255,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hdr-logo-name{color:#fff;font-weight:700;font-size:15px;line-height:1.1}
+.hdr-logo-city{color:rgba(255,255,255,.65);font-size:11px}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sync-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border-radius:20px;padding:4px 11px;cursor:default}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#fff;flex-shrink:0;transition:background .3s}
+.sync-dot.ok{background:#4ade80}
+.sync-dot.err{background:#f87171}
+.sync-dot.spin{background:#fbbf24;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-lbl{font-size:11px;color:rgba(255,255,255,.85);font-weight:500;white-space:nowrap}
+.font-btn{background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.85);font-size:12px;font-weight:500;padding:4px 10px;border-radius:16px;cursor:pointer;font-family:inherit}
+.font-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ── NAV ── */
+.nav-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none}
+.nav-bar::-webkit-scrollbar{display:none}
+.ntab{padding:12px 16px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);font-family:inherit;border-bottom:2.5px solid transparent;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.ntab:hover{color:var(--text);background:var(--bg)}
+.ntab.on{color:var(--teal);border-bottom-color:var(--teal)}
+
+/* ── PAGES ── */
+.pg{display:none;padding:1rem 1.25rem;max-width:1000px;margin:0 auto}
+.pg.on{display:block}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 15px;border-radius:var(--r);border:1px solid var(--border-m);background:var(--surface);cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);display:inline-flex;align-items:center;gap:6px;font-weight:500;transition:all .15s;box-shadow:var(--sh)}
+.btn:hover{background:var(--bg)}
+.btn:active{transform:scale(.97)}
+.btn.pr{background:var(--teal);color:#fff;border-color:var(--teal)}
+.btn.pr:hover{background:var(--teal-d)}
+.btn.sm{font-size:12px;padding:5px 10px;box-shadow:none}
+.btn.red{background:var(--red-l);color:var(--red);border-color:var(--red-b)}
+.btn.red:hover{background:#fee2e2}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.1rem}
+.sc{background:var(--surface);border-radius:var(--r-lg);padding:13px 15px;border:1px solid var(--border);box-shadow:var(--sh)}
+.sc-ico{font-size:18px;margin-bottom:6px}
+.sc-l{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.sc-v{font-size:26px;font-weight:700;line-height:1}
+
+/* ── DATE TABS ── */
+.dtabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;margin-bottom:.9rem;scrollbar-width:thin}
+.dtab{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;white-space:nowrap;color:var(--text2);flex-shrink:0;font-weight:500;transition:all .15s}
+.dtab:hover{border-color:var(--teal-m);color:var(--teal)}
+.dtab.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.dtab.has{border-color:var(--teal-b);color:var(--teal);background:var(--teal-l)}
+.dtab.has.on{background:var(--teal);color:#fff}
+
+/* ── ORDER CARDS ── */
+.rlist{display:flex;flex-direction:column;gap:8px}
+.rc{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);padding:12px 14px;display:flex;gap:11px;align-items:flex-start;box-shadow:var(--sh);transition:box-shadow .15s}
+.rc:hover{box-shadow:var(--sh-md)}
+.rc.done{opacity:.5}
+.rc.post{border-left:3px solid var(--amber)}
+.rc.cancel{opacity:.4}
+.rprice{background:var(--teal-l);color:var(--teal);font-weight:700;font-size:15px;padding:6px 10px;border-radius:8px;white-space:nowrap;min-width:58px;text-align:center;flex-shrink:0;border:1px solid var(--teal-b);line-height:1.2}
+.rprice small{font-size:10px;font-weight:400;display:block;opacity:.7}
+.rinfo{flex:1;min-width:0}
+.radr{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--text);margin-bottom:3px}
+.rph{font-size:13px;color:var(--teal);font-weight:500;margin-bottom:3px}
+.rcmt{font-size:12px;color:var(--text2);margin-top:5px;padding:4px 8px;background:#F9FAFB;border-radius:6px;border-left:2px solid var(--border-m)}
+.rtech{font-size:11px;color:var(--blue);background:var(--blue-l);padding:2px 8px;border-radius:5px;display:inline-block;font-weight:500;margin-top:3px;margin-right:5px}
+.map-btn{font-size:11px;color:var(--blue);text-decoration:none;padding:3px 8px;border-radius:6px;border:1px solid var(--blue-b);background:var(--blue-l);font-weight:500}
+.map-btn:hover{background:#dbeafe}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:5px;font-weight:600;margin-top:4px}
+.badge.new{background:var(--blue-l);color:var(--blue)}
+.badge.done{background:var(--green-l);color:var(--green)}
+.badge.post{background:var(--amber-l);color:var(--amber)}
+.badge.inwork{background:#EEF0F2;color:#5A6470}
+.badge.cancel{background:var(--red-l);color:var(--red)}
+.ract{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:7px;margin-bottom:.9rem;flex-wrap:wrap;align-items:center}
+.sinp{padding:8px 11px;border-radius:var(--r);border:1px solid var(--border-m);background:var(--surface);font-size:13px;font-family:inherit;color:var(--text);outline:none;transition:border .15s;box-shadow:var(--sh)}
+.sinp:focus{border-color:var(--teal-m);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+
+/* ── MODAL ── */
+.mbg{display:none;position:fixed;inset:0;background:rgba(17,24,39,.55);z-index:200;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto}
+.mbg.on{display:flex}
+.modal{background:var(--surface);border-radius:var(--r-xl);padding:1.5rem;width:100%;max-width:520px;box-shadow:var(--sh-lg);margin:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
+.modal-hdr h2{font-size:16px;font-weight:700}
+.fr{margin-bottom:11px}
+.fr label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.fr input,.fr select,.fr textarea{width:100%;padding:9px 11px;border-radius:var(--r);border:1px solid var(--border-m);background:#FAFAFA;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition:all .15s}
+.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:var(--teal-m);background:var(--surface);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.fr textarea{resize:vertical;min-height:60px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.pchip{padding:6px 14px;border-radius:8px;border:1px solid var(--border-m);background:#FAFAFA;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.pchip:hover{border-color:var(--teal-m)}
+.pchip.on{background:var(--teal-l);border-color:var(--teal);color:var(--teal);font-weight:700}
+.mac{display:flex;gap:8px;margin-top:1.1rem;justify-content:flex-end}
+
+/* ── SCHEDULE ── */
+.scal-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);background:var(--surface);box-shadow:var(--sh)}
+.scal{min-width:640px}
+.scal-head{display:grid;background:#F9FAFB;border-bottom:1px solid var(--border)}
+.scal-row{display:grid;border-top:1px solid #F3F4F6}
+.scell{padding:8px 9px;font-size:12px;background:var(--surface);border-right:1px solid #F3F4F6}
+.scell:last-child{border-right:none}
+.scell.lbl{background:#F9FAFB;font-size:10px;color:var(--text2);font-weight:600;display:flex;align-items:center;text-transform:uppercase;letter-spacing:.3px}
+.scell.today{background:#F0FDF4}
+.scell.head{padding:8px 9px;font-weight:600;font-size:11px;text-align:center;color:var(--text2);text-transform:uppercase;letter-spacing:.3px}
+.tch{display:inline-block;font-size:11px;padding:2px 8px;border-radius:5px;background:var(--teal-l);color:var(--teal);font-weight:700;margin:1px;border:1px solid var(--teal-b)}
+.add-btn{color:#D1D5DB;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:50px;width:100%;border:none;background:transparent;transition:color .15s;font-family:inherit}
+.add-btn:hover{color:var(--teal)}
+
+/* ── TECHNICIANS ── */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px;margin-bottom:1.25rem}
+.tcard{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);padding:15px;box-shadow:var(--sh);transition:box-shadow .15s}
+.tcard:hover{box-shadow:var(--sh-md)}
+.tav{width:42px;height:42px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--teal);margin-bottom:9px;border:2px solid var(--teal-b)}
+.tcard-name{font-weight:700;font-size:15px}
+.tcard-regs{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5}
+.tcard-cnt{font-size:12px;color:var(--teal);margin-top:8px;font-weight:600;background:var(--teal-l);display:inline-block;padding:2px 9px;border-radius:5px;border:1px solid var(--teal-b)}
+
+/* ── IMPORT ── */
+.izone{border:2px dashed var(--border-m);border-radius:var(--r-lg);padding:2.5rem;text-align:center;background:var(--surface);cursor:pointer;transition:all .2s;margin-bottom:1rem;box-shadow:var(--sh)}
+.izone:hover,.izone.drag{border-color:var(--teal);background:var(--teal-l)}
+.izone h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.izone p{font-size:13px;color:var(--text2)}
+.iresult{border-radius:var(--r-lg);padding:14px 16px;margin-bottom:1rem}
+.iresult.ok{background:var(--teal-l);border:1px solid var(--teal-b)}
+.iresult.warn{background:var(--amber-l);border:1px solid var(--amber-b)}
+.info-card{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);padding:1rem 1.25rem;box-shadow:var(--sh)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#111827;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;pointer-events:none;z-index:999;max-width:300px;transform:translateY(10px)}
+.toast.on{opacity:1;transform:translateY(0)}
+.toast.suc{background:var(--teal-d)}
+.toast.err{background:#991b1b}
+
+/* ── OFFLINE ── */
+.offline-bar{background:var(--amber-l);border-bottom:1px solid var(--amber-b);padding:6px 1.25rem;text-align:center;font-size:12px;color:#92400e;font-weight:500;display:none}
+.offline-bar.on{display:block}
+
+/* ── FONT PANEL ── */
+.font-panel{position:fixed;top:60px;right:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:12px;z-index:300;min-width:200px;display:none}
+.font-panel.on{display:block}
+.font-opt{padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s}
+.font-opt:hover{background:var(--bg)}
+.font-opt.active{background:var(--teal-l);color:var(--teal);font-weight:600}
+.font-opt-ico{font-size:18px;width:24px;text-align:center}
+.font-size-row{display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid var(--border);margin-top:6px}
+.font-size-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border-m);background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.font-size-btn:hover{background:var(--bg)}
+
+/* ── PAGE HEADER ── */
+.pg-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.pg-title{font-size:17px;font-weight:700}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:3rem 1rem;color:var(--text2)}
+.empty-ico{font-size:52px;margin-bottom:.75rem;opacity:.35}
+.empty h3{font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px}
+
+/* ── MOBILE ── */
+@media(max-width:640px){
+  :root{--font-size:16px}
+  .pg{padding:.75rem}
+  .fg{grid-template-columns:1fr}
+  .sinp{width:100%}
+  .ntab{padding:10px 12px;font-size:12px}
+  .hdr-logo-city{display:none}
+  .rc{flex-direction:column}
+  .rprice{align-self:flex-start}
+  .ract{flex-direction:row}
+  .stats{grid-template-columns:1fr 1fr}
+  .map-btn{padding:5px 12px;font-size:13px}
+  .rcmt{font-size:13px}
+  .rph{font-size:14px}
+  .radr{font-size:15px}
+  .dtab{font-size:13px;padding:7px 14px}
+  .modal{margin:0;border-radius:var(--r-xl) var(--r-xl) 0 0;position:fixed;bottom:0;left:0;right:0;max-width:100%;padding:1.25rem}
+  .mbg{align-items:flex-end;padding:0}
+  .fr input,.fr select,.fr textarea{font-size:16px;padding:11px 13px}
+}
+@media(min-width:641px){
+  .mob-nav{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="offline-bar" id="offline-bar">⚠ Нет интернета — изменения сохранены локально, синхронизируются автоматически</div>
+
+<!-- Font panel -->
+<div class="font-panel" id="font-panel">
+  <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding:0 4px">Шрифт</div>
+  <div class="font-opt active" id="fo-sys" onclick="setFont('','fo-sys')"><span class="font-opt-ico">Аа</span>Системный</div>
+  <div class="font-opt" id="fo-serif" onclick="setFont('font-serif','fo-serif')" style="font-family:Georgia,serif"><span class="font-opt-ico">Аа</span>С засечками</div>
+  <div class="font-opt" id="fo-mono" onclick="setFont('font-mono','fo-mono')" style="font-family:Courier New,monospace"><span class="font-opt-ico">Аа</span>Моноширинный</div>
+  <div class="font-opt" id="fo-round" onclick="setFont('font-round','fo-round')" style="font-family:Trebuchet MS,sans-serif"><span class="font-opt-ico">Аа</span>Округлый</div>
+  <div class="font-size-row">
+    <span style="font-size:12px;color:var(--text2);flex:1">Размер текста</span>
+    <button class="font-size-btn" onclick="changeSize(-1)">−</button>
+    <span style="font-size:13px;font-weight:600;min-width:30px;text-align:center" id="size-lbl">15</span>
+    <button class="font-size-btn" onclick="changeSize(1)">＋</button>
+  </div>
+</div>
+
+<header class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-logo-ico">💧</div>
+    <div>
+      <div class="hdr-logo-name">Поверка счётчиков</div>
+      <div class="hdr-logo-city">Каменское</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <button class="font-btn" onclick="toggleFontPanel()" id="font-toggle-btn">Шрифт ▾</button>
+    <div class="sync-pill">
+      <div class="sync-dot spin" id="sync-dot"></div>
+      <span class="sync-lbl" id="sync-lbl">загрузка...</span>
+    </div>
+  </div>
+</header>
+
+<nav class="nav-bar">
+  <button class="ntab on" onclick="nav('orders',this)">📋 Заявки</button>
+  <button class="ntab" onclick="nav('schedule',this)">📅 Расписание</button>
+  <button class="ntab" onclick="nav('techs',this)">👷 Техники</button>
+  <button class="ntab" onclick="nav('imp',this)">📥 Импорт</button>
+</nav>
+
+<!-- ЗАЯВКИ -->
+<div class="pg on" id="pg-orders">
+  <div class="stats">
+    <div class="sc"><div class="sc-ico">📋</div><div class="sc-l">Сегодня</div><div class="sc-v" style="color:var(--teal)" id="s-today">—</div></div>
+    <div class="sc"><div class="sc-ico">📆</div><div class="sc-l">Месяц</div><div class="sc-v" id="s-month">—</div></div>
+    <div class="sc"><div class="sc-ico">↩</div><div class="sc-l">Перенесено</div><div class="sc-v" style="color:var(--amber)" id="s-post">—</div></div>
+    <div class="sc"><div class="sc-ico">✓</div><div class="sc-l">Выполнено</div><div class="sc-v" style="color:var(--blue)" id="s-done">—</div></div>
+  </div>
+  <div class="toolbar">
+    <button class="btn pr" onclick="openAdd()">＋ Новая заявка</button>
+    <input class="sinp" placeholder="🔍 Поиск..." oninput="doSearch(this.value)" style="flex:1;min-width:150px">
+    <select class="sinp" onchange="filterTech(this.value)" id="ftech">
+      <option value="">Все техники</option>
+    </select>
+    <select class="sinp" onchange="filterStatus(this.value)">
+      <option value="">Все статусы</option>
+      <option value="new">Новые</option>
+      <option value="inwork">В работе</option>
+      <option value="post">Перенесённые</option>
+      <option value="done">Выполненные</option>
+      <option value="cancel">Отменённые</option>
+    </select>
+  </div>
+  <div class="dtabs" id="dtabs"></div>
+  <div class="rlist" id="rlist"></div>
+</div>
+
+<!-- РАСПИСАНИЕ -->
+<div class="pg" id="pg-schedule">
+  <div class="pg-hdr">
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <button class="btn" onclick="wk(-1)">← Назад</button>
+      <span style="font-weight:700;font-size:14px" id="wlbl"></span>
+      <button class="btn" onclick="wk(1)">Вперёд →</button>
+    </div>
+    <button class="btn pr" onclick="openSched()">＋ Назначить</button>
+  </div>
+  <div class="scal-wrap"><div class="scal" id="scalgrid"></div></div>
+</div>
+
+<!-- ТЕХНИКИ -->
+<div class="pg" id="pg-techs">
+  <div class="pg-hdr">
+    <div class="pg-title">Техники</div>
+    <button class="btn pr" onclick="openTech()">＋ Добавить</button>
+  </div>
+  <div class="tgrid" id="tgrid"></div>
+</div>
+
+<!-- ИМПОРТ -->
+<div class="pg" id="pg-imp">
+  <div class="pg-hdr"><div class="pg-title">Импорт из Excel</div></div>
+  <div class="izone" id="izone" onclick="document.getElementById('fi').click()">
+    <div style="font-size:46px;margin-bottom:11px">📄</div>
+    <h3>Загрузить Excel-файл</h3>
+    <p>Нажмите или перетащите файл маи__2026.xlsx или ГРАФ_.ods</p>
+    <p style="font-size:11px;margin-top:7px;color:var(--text3)">Файл обрабатывается на устройстве — никуда не отправляется</p>
+  </div>
+  <input type="file" id="fi" accept=".xlsx,.xls,.ods" style="display:none" onchange="onFile(event)">
+  <div id="iprev"></div>
+  <div class="info-card">
+    <p style="font-size:13px;font-weight:700;margin-bottom:8px">📋 Формат файла заявок (маи__2026.xlsx)</p>
+    <p style="font-size:13px;color:var(--text2);line-height:1.8">
+      Каждый лист = день (0105, 0205...)<br>
+      Блоки по техникам: Влад / Юра / Саша / Паша<br>
+      Столбцы: Цена | Адрес | Телефон | Комментарий<br><br>
+      <strong>ГРАФ_.ods</strong> — расписание техников по районам
+    </p>
+  </div>
+</div>
+
+<!-- Модал заявки -->
+<div class="mbg" id="m-add">
+<div class="modal">
+  <div class="modal-hdr">
+    <h2 id="m-title">Новая заявка</h2>
+    <button class="btn sm" onclick="closeM('m-add')" style="font-size:18px;color:var(--text2);border:none;box-shadow:none;padding:4px 8px">✕</button>
+  </div>
+  <div class="fr">
+    <label>Стоимость поверки (грн)</label>
+    <div class="pchips">
+      <div class="pchip on" onclick="selP(370,this)">370</div>
+      <div class="pchip" onclick="selP(400,this)">400</div>
+      <div class="pchip" onclick="selP(450,this)">450</div>
+      <div class="pchip" onclick="selP(500,this)">500</div>
+      <div class="pchip" onclick="selP(600,this)">600</div>
+    </div>
+    <input type="number" id="f-price" value="370" placeholder="другая сумма">
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Телефон абонента</label><input type="tel" id="f-phone" placeholder="097 000 00 00"></div>
+    <div class="fr"><label>Дата поверки</label><input type="date" id="f-date"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Улица</label><input type="text" id="f-str" placeholder="ул. Нескорених"></div>
+    <div class="fr"><label>Дом-квартира</label><input type="text" id="f-adr" placeholder="17-84"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Район города</label>
+      <select id="f-reg">
+        <option value="">— выберите район —</option>
+        <option>Аулы</option><option>Левый берег</option><option>Соцгород</option>
+        <option>Карнауховка</option><option>Правый берег</option><option>Романково</option>
+        <option>Центр</option><option>Баглей</option><option>Днепровский район</option>
+        <option>Заводской район</option><option>Тритузное</option><option>Светлое</option>
+        <option>Комсомольское</option><option>Строитель</option><option>п. Мир</option>
+        <option>Чапаево</option><option>ДВРЗ</option><option>Лоцманский</option>
+        <option>Чкаловка</option><option>Воскресенка</option>
+      </select>
+    </div>
+    <div class="fr"><label>Техник</label>
+      <select id="f-tech"><option value="">— авто —</option></select>
+    </div>
+  </div>
+  <div class="fr"><label>Комментарий</label>
+    <textarea id="f-cmt" placeholder="Будет дома в 13:00, позвонить за час..."></textarea>
+  </div>
+  <div class="fr"><label>Статус</label>
+    <select id="f-st">
+      <option value="new">Новая</option>
+      <option value="inwork">В работе</option>
+      <option value="post">Перенесена</option>
+      <option value="done">Выполнена ✓</option>
+      <option value="cancel">Отменена</option>
+    </select>
+  </div>
+  <div class="mac">
+    <button class="btn" onclick="closeM('m-add')">Отмена</button>
+    <button class="btn pr" onclick="saveRec()">💾 Сохранить</button>
+  </div>
+</div>
+</div>
+
+<!-- Модал техника -->
+<div class="mbg" id="m-tech">
+<div class="modal">
+  <div class="modal-hdr">
+    <h2>Добавить техника</h2>
+    <button class="btn sm" onclick="closeM('m-tech')" style="font-size:18px;color:var(--text2);border:none;box-shadow:none">✕</button>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Имя (кратко)</label><input type="text" id="t-name" placeholder="Влад"></div>
+    <div class="fr"><label>Полное имя</label><input type="text" id="t-full" placeholder="Владислав Иванов"></div>
+  </div>
+  <div class="fr"><label>Телефон</label><input type="tel" id="t-ph" placeholder="+380..."></div>
+  <div class="fr"><label>Районы работы</label>
+    <div id="t-regs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px"></div>
+  </div>
+  <div class="mac">
+    <button class="btn" onclick="closeM('m-tech')">Отмена</button>
+    <button class="btn pr" onclick="saveTech()">💾 Сохранить</button>
+  </div>
+</div>
+</div>
+
+<!-- Модал расписания -->
+<div class="mbg" id="m-sched">
+<div class="modal">
+  <div class="modal-hdr">
+    <h2>Назначить техника</h2>
+    <button class="btn sm" onclick="closeM('m-sched')" style="font-size:18px;color:var(--text2);border:none;box-shadow:none">✕</button>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Дата</label><input type="date" id="s-date"></div>
+    <div class="fr"><label>Техник</label><select id="s-tech"></select></div>
+  </div>
+  <div class="fr"><label>Район</label>
+    <select id="s-reg">
+      <option value="">— все районы —</option>
+      <option>Аулы</option><option>Левый берег</option><option>Соцгород</option>
+      <option>Карнауховка</option><option>Правый берег</option><option>Романково</option>
+      <option>Центр</option><option>Баглей</option><option>Днепровский район</option>
+      <option>Заводской район</option><option>Тритузное</option><option>Светлое</option>
+      <option>Комсомольское</option><option>Строитель</option><option>п. Мир</option>
+      <option>Чапаево</option><option>ДВРЗ</option><option>Лоцманский</option>
+      <option>Чкаловка</option><option>Воскресенка</option>
+    </select>
+  </div>
+  <div class="mac">
+    <button class="btn" onclick="closeM('m-sched')">Отмена</button>
+    <button class="btn pr" onclick="saveSched()">💾 Сохранить</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ SUPABASE ═══
+const SB='https://fzsamrleozjrihzuaxfy.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6c2Ftcmxlb3pqcmloenVheGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzQ2MjMsImV4cCI6MjA5NTMxMDYyM30.1imDTtymwzyjUJmyGoHpCIKFlGTlZK62fd1YpM0nXJY';
+const HD={'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};
+const sbGet=async(t,p='')=>{const r=await fetch(`${SB}/rest/v1/${t}?${p}`,{headers:HD});if(!r.ok)throw new Error(await r.text());return r.json()};
+const sbUp=async(t,d)=>{const r=await fetch(`${SB}/rest/v1/${t}`,{method:'POST',headers:{...HD,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json()};
+const sbDel=async(t,id)=>{const r=await fetch(`${SB}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:HD});if(!r.ok)throw new Error(await r.text())};
+
+// ═══ STATE ═══
+let D={records:[],techs:[],sched:[]};
+let editId=null,selPrice=370,curDate=null,wkOff=0,srchQ='',techFil='',statusFil='';
+
+// Офлайн-очередь — хранит операции которые не смогли синхронизироваться
+let offlineQueue=[];
+
+const DISTRICTS=['Аулы','Левый берег','Соцгород','Карнауховка','Правый берег','Романково','Центр','Баглей','Днепровский район','Заводской район','Тритузное','Светлое','Комсомольское','Строитель','п. Мир','Чапаево','ДВРЗ','Лоцманский','Чкаловка','Воскресенка'];
+const RMAP={'ром':'Романково','роман':'Романково','аулы':'Аулы','аули':'Аулы','аул':'Аулы','лб':'Левый берег','соц':'Соцгород','соцгород':'Соцгород','карн':'Карнауховка','карнаух':'Карнауховка','мир':'п. Мир','шевч':'Центр','груш':'Центр','комс':'Комсомольское','алт':'Левый берег','алт чс':'Левый берег','строит':'Строитель','п.стр':'Строитель','п.строит':'Строитель','баглей':'Баглей','трит':'Тритузное','чапаево':'Чапаево','дврз':'ДВРЗ','лоц':'Лоцманский'};
+
+const today=()=>new Date().toISOString().slice(0,10);
+const fmtD=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}.${m}`};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+// ═══ ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ═══
+const BAK='pov_bak_v3';
+const QUE='pov_queue_v3';
+function saveLocal(){try{localStorage.setItem(BAK,JSON.stringify(D));localStorage.setItem(QUE,JSON.stringify(offlineQueue))}catch(e){}}
+function loadLocal(){try{const b=localStorage.getItem(BAK);const q=localStorage.getItem(QUE);if(b)D={...D,...JSON.parse(b)};if(q)offlineQueue=JSON.parse(q)||[]}catch(e){}}
+
+// ═══ СИНХРОНИЗАЦИЯ ОЧЕРЕДИ ═══
+async function flushQueue(){
+  if(!offlineQueue.length)return;
+  const failed=[];
+  for(const op of offlineQueue){
+    try{
+      if(op.type==='upsert')await sbUp(op.table,op.data);
+      else if(op.type==='delete')await sbDel(op.table,op.id);
+    }catch(e){failed.push(op)}
+  }
+  offlineQueue=failed;
+  saveLocal();
+  if(!failed.length&&offlineQueue.length===0)toast('Данные синхронизированы ✓','suc');
+}
+
+// ═══ СИНХРОНИЗАЦИЯ ═══
+function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-lbl').textContent=m}
+let toastT;
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast on'+(type?' '+type:'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='toast',3000)}
+
+async function loadAll(){
+  setSS('spin','загрузка...');
+  try{
+    const[recs,techs,sched]=await Promise.all([sbGet('records','order=date.asc,created_at.asc'),sbGet('techs','order=created_at.asc'),sbGet('sched','order=date.asc')]);
+    D.records=recs.map(r=>({id:r.id,price:r.price,ph:r.ph,date:r.date,str:r.str,adr:r.adr,reg:r.reg,techId:r.tech_id,cmt:r.cmt,status:r.status}));
+    D.techs=techs.map(t=>({id:t.id,name:t.name,full:t.full_name,ph:t.ph,regs:t.regs||[]}));
+    D.sched=sched.map(s=>({id:s.id,date:s.date,techId:s.tech_id,reg:s.reg}));
+    if(!D.techs.length)await seedTechs();
+    saveLocal();
+    setSS('ok','синхронизировано');
+    document.getElementById('offline-bar').classList.remove('on');
+    await flushQueue();
+    renderOrders();
+  }catch(e){
+    setSS('err','офлайн');
+    document.getElementById('offline-bar').classList.add('on');
+    loadLocal();
+    renderOrders();
+    toast('Работаем офлайн — все изменения сохранятся','err');
+  }
+}
+
+async function seedTechs(){
+  const defs=[{id:uid(),name:'Влад',full_name:'Влад',ph:'',regs:['Романково','Левый берег']},{id:uid(),name:'Саша',full_name:'Саша',ph:'',regs:['Центр','Левый берег']},{id:uid(),name:'Юра',full_name:'Юра',ph:'',regs:['Аулы','Соцгород']},{id:uid(),name:'Паша',full_name:'Паша',ph:'',regs:['Карнауховка','Соцгород']}];
+  try{await sbUp('techs',defs)}catch(e){}
+  D.techs=defs.map(t=>({id:t.id,name:t.name,full:t.full_name,ph:t.ph,regs:t.regs}));
+}
+
+// ═══ NAV ═══
+function nav(id,el){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');el.classList.add('on');
+  if(id==='orders')renderOrders();if(id==='schedule')renderSched();if(id==='techs')renderTechs();
+  document.getElementById('font-panel').classList.remove('on');
+}
+
+// ═══ ЗАЯВКИ ═══
+function renderOrders(){
+  const t=today();
+  document.getElementById('s-today').textContent=D.records.filter(r=>r.date===t).length;
+  document.getElementById('s-month').textContent=D.records.filter(r=>r.date&&r.date.slice(0,7)===t.slice(0,7)).length;
+  document.getElementById('s-post').textContent=D.records.filter(r=>r.status==='post').length;
+  document.getElementById('s-done').textContent=D.records.filter(r=>r.status==='done').length;
+  const fs=document.getElementById('ftech');const pv=fs.value;
+  fs.innerHTML='<option value="">Все техники</option>'+D.techs.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');fs.value=pv;
+  let dates=[...new Set(D.records.map(r=>r.date).filter(Boolean))].sort();
+  if(!dates.includes(t))dates.unshift(t);
+  if(!curDate||!dates.includes(curDate))curDate=t;
+  document.getElementById('dtabs').innerHTML=dates.map(d=>{
+    const n=D.records.filter(r=>r.date===d).length;
+    return`<div class="dtab${d===curDate?' on':''}${n>0&&d!==curDate?' has':''}" onclick="switchD('${d}')">${fmtD(d)}${n?` (${n})`:''}</div>`;
+  }).join('')+`<button style="padding:6px 12px;border-radius:8px;border:1px dashed var(--border-m);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);flex-shrink:0" onclick="addD()">＋ день</button>`;
+  let recs=D.records.filter(r=>r.date===curDate);
+  if(srchQ){const q=srchQ.toLowerCase();recs=recs.filter(r=>(r.str||'').toLowerCase().includes(q)||(r.ph||'').includes(q)||(r.cmt||'').toLowerCase().includes(q))}
+  if(techFil)recs=recs.filter(r=>r.techId===techFil);
+  if(statusFil)recs=recs.filter(r=>r.status===statusFil);
+  const rl=document.getElementById('rlist');
+  if(!recs.length){rl.innerHTML=`<div class="empty"><div class="empty-ico">📋</div><h3>Заявок на этот день нет</h3><p>Нажмите "＋ Новая заявка"</p></div>`;return}
+  const stmap={new:'<span class="badge new">Новая</span>',inwork:'<span class="badge inwork">В работе</span>',post:'<span class="badge post">↩ Перенесена</span>',done:'<span class="badge done">✓ Выполнена</span>',cancel:'<span class="badge cancel">✕ Отменена</span>'};
+  rl.innerHTML=recs.map(r=>{
+    const tech=D.techs.find(t=>t.id===r.techId);
+    const murl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Каменское '+(r.str||'')+' '+(r.adr||''))}`;
+    return`<div class="rc${r.status==='done'?' done':''}${r.status==='post'?' post':''}${r.status==='cancel'?' cancel':''}">
+      <div class="rprice">${r.price||'—'}<small>грн</small></div>
+      <div class="rinfo">
+        <div class="radr">${r.str||'—'}${r.adr?', '+r.adr:''} <a class="map-btn" href="${murl}" target="_blank">📍 Карта</a></div>
+        <div class="rph">📞 ${r.ph||'—'}</div>
+        ${r.reg?`<span style="font-size:11px;color:var(--text3);background:var(--bg);padding:1px 7px;border-radius:4px;border:1px solid var(--border);display:inline-block;margin-top:2px">📌 ${r.reg}</span>`:''}
+        ${r.cmt?`<div class="rcmt">💬 ${r.cmt}</div>`:''}
+        ${tech?`<span class="rtech">👷 ${tech.name}</span>`:''}
+        ${stmap[r.status]||''}
+      </div>
+      <div class="ract">
+        <button class="btn sm" onclick="editRec('${r.id}')">✏️</button>
+        <button class="btn sm red" onclick="delRec('${r.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchD(d){curDate=d;renderOrders()}
+function doSearch(q){srchQ=q;renderOrders()}
+function filterTech(v){techFil=v;renderOrders()}
+function filterStatus(v){statusFil=v;renderOrders()}
+function addD(){const d=prompt('Дата (ГГГГ-ММ-ДД):');if(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)){curDate=d;renderOrders()}}
+
+function openAdd(){
+  editId=null;document.getElementById('m-title').textContent='Новая заявка';
+  ['f-phone','f-str','f-adr','f-cmt'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('f-date').value=curDate||today();
+  document.getElementById('f-reg').value='';document.getElementById('f-st').value='new';
+  selP(370);fillTechSel('f-tech','');document.getElementById('m-add').classList.add('on');
+}
+function editRec(id){
+  const r=D.records.find(x=>x.id===id);if(!r)return;
+  editId=id;document.getElementById('m-title').textContent='Редактировать заявку';
+  document.getElementById('f-phone').value=r.ph||'';document.getElementById('f-date').value=r.date||today();
+  document.getElementById('f-str').value=r.str||'';document.getElementById('f-adr').value=r.adr||'';
+  document.getElementById('f-reg').value=r.reg||'';document.getElementById('f-cmt').value=r.cmt||'';
+  document.getElementById('f-st').value=r.status||'new';selP(r.price||370);
+  document.getElementById('f-price').value=r.price||370;fillTechSel('f-tech',r.techId||'');
+  document.getElementById('m-add').classList.add('on');
+}
+function selP(p,el){
+  selPrice=p;document.getElementById('f-price').value=p||'';
+  document.querySelectorAll('.pchip').forEach(c=>c.classList.remove('on'));
+  if(el)el.classList.add('on');else document.querySelectorAll('.pchip').forEach(c=>{if(parseInt(c.textContent)===p)c.classList.add('on')});
+}
+
+async function saveRec(){
+  const ph=document.getElementById('f-phone').value.trim();const str=document.getElementById('f-str').value.trim();
+  if(!ph&&!str){alert('Введите телефон или адрес');return}
+  const pr=parseInt(document.getElementById('f-price').value)||selPrice||370;
+  const rec={id:editId||uid(),price:pr,ph,str,adr:document.getElementById('f-adr').value.trim(),date:document.getElementById('f-date').value||today(),reg:document.getElementById('f-reg').value,tech_id:document.getElementById('f-tech').value,cmt:document.getElementById('f-cmt').value.trim(),status:document.getElementById('f-st').value};
+  const loc={id:rec.id,price:rec.price,ph:rec.ph,str:rec.str,adr:rec.adr,date:rec.date,reg:rec.reg,techId:rec.tech_id,cmt:rec.cmt,status:rec.status};
+  // Сразу обновляем локально
+  if(editId){const i=D.records.findIndex(r=>r.id===editId);if(i>=0)D.records[i]=loc}else D.records.push(loc);
+  curDate=rec.date;saveLocal();closeM('m-add');renderOrders();toast(editId?'Заявка обновлена ✓':'Заявка добавлена ✓','suc');
+  // Затем синхронизируем с сервером
+  setSS('spin','сохранение...');
+  try{await sbUp('records',rec);setSS('ok','сохранено ✓')}
+  catch(e){offlineQueue.push({type:'upsert',table:'records',data:rec});saveLocal();setSS('err','офлайн — сохранено локально');toast('Сохранено локально','err')}
+}
+
+async function delRec(id){
+  if(!confirm('Удалить эту заявку?'))return;
+  D.records=D.records.filter(r=>r.id!==id);saveLocal();renderOrders();toast('Удалено');
+  try{await sbDel('records',id)}
+  catch(e){offlineQueue.push({type:'delete',table:'records',id});saveLocal()}
+}
+
+// ═══ РАСПИСАНИЕ ═══
+function getWeek(){const d=new Date();d.setDate(d.getDate()-d.getDay()+1+wkOff*7);return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)})}
+function renderSched(){
+  const days=getWeek();const dn=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];const t=today();
+  document.getElementById('wlbl').textContent=`${fmtD(days[0])} — ${fmtD(days[6])}`;
+  const cols=`90px repeat(7,1fr)`;
+  let h=`<div class="scal-head" style="display:grid;grid-template-columns:${cols}">
+    <div class="scell head lbl">Район</div>
+    ${days.map((d,i)=>`<div class="scell head${d===t?' today':''}">${dn[i]}<br><span style="font-size:10px;font-weight:400;opacity:.6">${fmtD(d)}</span></div>`).join('')}
+  </div>`;
+  DISTRICTS.forEach(reg=>{
+    h+=`<div class="scal-row" style="display:grid;grid-template-columns:${cols}">
+      <div class="scell lbl" style="padding:6px 9px">${reg}</div>
+      ${days.map(d=>{
+        const slots=D.sched.filter(s=>s.date===d&&s.reg===reg);
+        const cnt=D.records.filter(r=>r.date===d&&r.reg===reg).length;
+        if(!slots.length)return`<div class="scell${d===t?' today':''}" style="padding:0"><button class="add-btn" onclick="quickSched('${d}','${reg}')">＋</button></div>`;
+        return`<div class="scell${d===t?' today':''}" style="min-height:50px">
+          ${slots.map(s=>{const tc=D.techs.find(t=>t.id===s.techId);return`<span class="tch">${tc?tc.name:'?'}</span>`}).join('')}
+          ${cnt?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${cnt} зав.</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  document.getElementById('scalgrid').innerHTML=h;
+}
+function wk(d){wkOff+=d;renderSched()}
+function quickSched(date,reg){document.getElementById('s-date').value=date;document.getElementById('s-reg').value=reg;fillTechSel('s-tech','');document.getElementById('m-sched').classList.add('on')}
+function openSched(){document.getElementById('s-date').value=today();document.getElementById('s-reg').value='';fillTechSel('s-tech','');document.getElementById('m-sched').classList.add('on')}
+async function saveSched(){
+  const d=document.getElementById('s-date').value;const tId=document.getElementById('s-tech').value;
+  if(!d||!tId){alert('Выберите дату и техника');return}
+  const s={id:uid(),date:d,tech_id:tId,reg:document.getElementById('s-reg').value};
+  D.sched.push({id:s.id,date:s.date,techId:s.tech_id,reg:s.reg});saveLocal();closeM('m-sched');renderSched();toast('Назначено ✓','suc');
+  try{await sbUp('sched',s)}catch(e){offlineQueue.push({type:'upsert',table:'sched',data:s});saveLocal()}
+}
+function fillTechSel(id,val){document.getElementById(id).innerHTML=D.techs.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');document.getElementById(id).value=val}
+
+// ═══ ТЕХНИКИ ═══
+function renderTechs(){
+  const g=document.getElementById('tgrid');
+  if(!D.techs.length){g.innerHTML='<div class="empty"><div class="empty-ico">👷</div><h3>Нет техников</h3></div>';return}
+  g.innerHTML=D.techs.map(t=>{
+    const ini=(t.full||t.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const cnt=D.records.filter(r=>r.techId===t.id).length;
+    return`<div class="tcard">
+      <div class="tav">${ini}</div>
+      <div class="tcard-name">${t.full||t.name}</div>
+      <div class="tcard-regs">${(t.regs||[]).join(', ')||'—'}</div>
+      ${t.ph?`<div style="font-size:12px;color:var(--text2);margin-top:4px">📞 ${t.ph}</div>`:''}
+      <div class="tcard-cnt">${cnt} заявок</div>
+      <button class="btn red sm" style="margin-top:10px" onclick="delTech('${t.id}')">Удалить</button>
+    </div>`;
+  }).join('');
+}
+function openTech(){
+  ['t-name','t-full','t-ph'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('t-regs').innerHTML=DISTRICTS.map(r=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg)"><input type="checkbox" value="${r}" style="width:auto"> ${r}</label>`).join('');
+  document.getElementById('m-tech').classList.add('on');
+}
+async function saveTech(){
+  const n=document.getElementById('t-name').value.trim();if(!n){alert('Введите имя');return}
+  const regs=[...document.querySelectorAll('#t-regs input:checked')].map(c=>c.value);
+  const t={id:uid(),name:n,full_name:document.getElementById('t-full').value.trim()||n,ph:document.getElementById('t-ph').value.trim(),regs};
+  D.techs.push({id:t.id,name:t.name,full:t.full_name,ph:t.ph,regs:t.regs});saveLocal();closeM('m-tech');renderTechs();toast('Техник добавлен ✓','suc');
+  try{await sbUp('techs',[t])}catch(e){offlineQueue.push({type:'upsert',table:'techs',data:[t]});saveLocal()}
+}
+async function delTech(id){
+  if(!confirm('Удалить техника?'))return;
+  D.techs=D.techs.filter(t=>t.id!==id);saveLocal();renderTechs();toast('Удалено');
+  try{await sbDel('techs',id)}catch(e){}
+}
+
+// ═══ ИМПОРТ ═══
+function onFile(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{const wb=XLSX.read(e.target.result,{type:'binary'});if(f.name.toLowerCase().endsWith('.ods')||f.name.toLowerCase().includes('граф'))importGraph(wb,f.name);else importOrders(wb,f.name)}
+    catch(err){alert('Ошибка чтения файла: '+err.message)}
+  };
+  reader.readAsBinaryString(f);ev.target.value='';
+}
+
+async function importOrders(wb,fname){
+  let rows=[];const year=new Date().getFullYear();
+  wb.SheetNames.forEach(sname=>{
+    const m=/^(\d{2})(\d{2})$/.exec(sname);if(!m)return;
+    const date=`${year}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    const sh=wb.Sheets[sname];const data=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+    let curTech=null;
+    data.forEach(row=>{
+      if(!row.some(c=>c))return;
+      const c0=String(row[0]||'').trim();const c1=String(row[1]||'').trim();const c2=String(row[2]||'').trim();const c3=String(row[3]||'').trim();
+      if(/на\s+\d/i.test(c1)||/на\s+\d/i.test(c2))return;
+      if(c0&&isNaN(c0)&&c0.length>1&&c0.length<15&&!['відміна','отмена','инж'].some(x=>c0.toLowerCase().includes(x))&&!/вул|пер|ська|зька/.test(c0.toLowerCase())){curTech=c0;return}
+      const pc=String(row[0]||'');let price=0;
+      const pm=/(\d+)[хx](\d+)/i.exec(pc);if(pm)price=parseInt(pm[2])||0;else if(/^\d{3,}/.test(pc))price=parseInt(pc)||0;
+      if(!price)price=370;
+      if(!c1&&!c2)return;
+      let str=c1,adr='';
+      const am=c1.match(/^(.*?)[,\s]+(\d+[-\/]\d+|\d+\s*[кКkK][вВvV]\.?\s*\d+)$/);
+      if(am){str=am[1].trim();adr=am[2].trim()}else{const bm=c1.match(/^(.*?),\s*(\d+.*)$/);if(bm){str=bm[1].trim();adr=bm[2].trim()}}
+      if(str.length<3&&!c2)return;
+      const techId=D.techs.find(t=>t.name.toLowerCase()===(curTech||'').toLowerCase())?.id||'';
+      rows.push({id:uid(),price,ph:c2.replace(/\s+/g,'').slice(-10),str,adr,cmt:c3,date,status:'new',tech_id:techId,reg:''});
+    });
+  });
+  if(!rows.length){document.getElementById('iprev').innerHTML='<div class="iresult warn"><p style="font-weight:700;color:#92400e">⚠ Записей не найдено</p></div>';return}
+  // Локально сразу
+  rows.forEach(r=>D.records.push({id:r.id,price:r.price,ph:r.ph,str:r.str,adr:r.adr,date:r.date,reg:r.reg,techId:r.tech_id,cmt:r.cmt,status:r.status}));
+  saveLocal();curDate=today();renderOrders();
+  document.getElementById('iprev').innerHTML=`<div class="iresult ok"><p style="font-weight:700;color:var(--teal);font-size:15px">✓ Импортировано ${rows.length} заявок</p><p style="font-size:12px;margin-top:4px;color:var(--teal)">Файл: ${fname}</p></div>`;
+  toast(`Импортировано ${rows.length} заявок ✓`,'suc');
+  try{for(let i=0;i<rows.length;i+=50)await sbUp('records',rows.slice(i,i+50));setSS('ok','синхронизировано')}
+  catch(e){rows.forEach(r=>offlineQueue.push({type:'upsert',table:'records',data:r}));saveLocal();setSS('err','офлайн')}
+}
+
+async function importGraph(wb,fname){
+  const sh=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+  const year=new Date().getFullYear();let techNames=[];let toAdd=[];
+  rows.forEach(row=>{
+    const nRow=row.filter(c=>c&&typeof c==='string'&&['влад','саша','юра','паша'].some(n=>String(c).toLowerCase().includes(n)));
+    if(nRow.length>=2){techNames=row.filter(c=>c&&typeof c==='string'&&c.length>1&&c.length<15).map(c=>String(c).trim());return}
+    const r0=String(row[0]||'').trim().toUpperCase();
+    if(['ПН','ВТ','СР','ЧТ','ПЯТ','СУБ','ЧЕТВ'].includes(r0)){
+      row.forEach((cell,ci)=>{
+        if(!cell||isNaN(cell))return;const dayNum=parseInt(cell);if(dayNum<1||dayNum>31)return;
+        for(let ti=0;ti<4;ti++){
+          const rc=String(row[ci+ti+1]||'').trim().toLowerCase();
+          if(!rc||['вых','выход','вих'].includes(rc))continue;
+          const reg=RMAP[rc]||null;const tN=(techNames[ti]||'').toLowerCase();
+          const tech=D.techs.find(t=>t.name.toLowerCase()===tN||tN.includes(t.name.toLowerCase()));
+          if(!tech||!reg)continue;
+          const m=String(new Date().getMonth()+1).padStart(2,'0');
+          const date=`${year}-${m}-${String(dayNum).padStart(2,'0')}`;
+          if(!D.sched.find(s=>s.date===date&&s.techId===tech.id&&s.reg===reg)&&!toAdd.find(s=>s.date===date&&s.tech_id===tech.id&&s.reg===reg))
+            toAdd.push({id:uid(),date,tech_id:tech.id,reg});
+        }
+      });
+    }
+  });
+  if(!toAdd.length){document.getElementById('iprev').innerHTML='<div class="iresult warn"><p style="font-weight:700;color:#92400e">⚠ Записей расписания не найдено</p></div>';return}
+  toAdd.forEach(s=>D.sched.push({id:s.id,date:s.date,techId:s.tech_id,reg:s.reg}));saveLocal();
+  document.getElementById('iprev').innerHTML=`<div class="iresult ok"><p style="font-weight:700;color:var(--teal);font-size:15px">✓ Импортировано ${toAdd.length} записей расписания</p></div>`;
+  toast('Расписание импортировано ✓','suc');
+  try{await sbUp('sched',toAdd)}catch(e){toAdd.forEach(s=>offlineQueue.push({type:'upsert',table:'sched',data:s}));saveLocal()}
+}
+
+// ═══ ШРИФТ ═══
+let curFontSize=15;
+function toggleFontPanel(){document.getElementById('font-panel').classList.toggle('on')}
+function setFont(cls,activeId){
+  document.body.className=document.body.className.replace(/font-\w+/g,'').trim();
+  if(cls)document.body.classList.add(cls);
+  document.querySelectorAll('.font-opt').forEach(o=>o.classList.remove('active'));
+  document.getElementById(activeId).classList.add('active');
+  try{localStorage.setItem('pov_font',cls);localStorage.setItem('pov_fontid',activeId)}catch(e){}
+  document.getElementById('font-panel').classList.remove('on');
+}
+function changeSize(d){
+  curFontSize=Math.min(22,Math.max(12,curFontSize+d));
+  document.documentElement.style.setProperty('--font-size',curFontSize+'px');
+  document.getElementById('size-lbl').textContent=curFontSize;
+  try{localStorage.setItem('pov_fsize',curFontSize)}catch(e){}
+}
+function loadFontPref(){
+  try{
+    const f=localStorage.getItem('pov_font');const fid=localStorage.getItem('pov_fontid');
+    const fs=parseInt(localStorage.getItem('pov_fsize'))||15;
+    if(f&&fid){document.body.classList.add(f);document.querySelectorAll('.font-opt').forEach(o=>o.classList.remove('active'));const el=document.getElementById(fid);if(el)el.classList.add('active')}
+    curFontSize=fs;document.documentElement.style.setProperty('--font-size',fs+'px');document.getElementById('size-lbl').textContent=fs;
+  }catch(e){}
+}
+
+// ═══ УТИЛИТЫ ═══
+const iz=document.getElementById('izone');
+iz.addEventListener('dragover',e=>{e.preventDefault();iz.classList.add('drag')});
+iz.addEventListener('dragleave',()=>iz.classList.remove('drag'));
+iz.addEventListener('drop',e=>{e.preventDefault();iz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)onFile({target:{files:[f],value:''}})});
+function closeM(id){document.getElementById(id).classList.remove('on')}
+document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on')}));
+document.addEventListener('click',e=>{const fp=document.getElementById('font-panel');const btn=document.getElementById('font-toggle-btn');if(!fp.contains(e.target)&&!btn.contains(e.target))fp.classList.remove('on')});
+
+// Автосинхронизация каждые 30 сек
+setInterval(()=>{if(document.getElementById('pg-orders').classList.contains('on'))loadAll()},30000);
+// При появлении интернета — синхронизировать очередь
+window.addEventListener('online',()=>{setSS('spin','синхронизация...');loadAll()});
+window.addEventListener('offline',()=>{setSS('err','офлайн');document.getElementById('offline-bar').classList.add('on')});
+
+// ═══ СТАРТ ═══
+loadFontPref();
+curDate=today();
+loadLocal(); // Сначала загружаем локальные данные для мгновенного отображения
+renderOrders();
+loadAll();   // Затем синхронизируем с сервером
+</script>
+</body>
+</html>
